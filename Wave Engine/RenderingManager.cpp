@@ -1,35 +1,16 @@
 #include "RenderingManager.h"
 
-RenderingManager::RenderingManager() 
+RenderingManager::RenderingManager() : _vulkanRenderer(nullptr) {}
+
+RenderingManager::~RenderingManager() {}
+
+bool RenderingManager::Initialize(Window& window)
 {
-	glfwInit();
-	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
+	_vulkanRenderer = new VulkanRenderer(window);
+	return true;
 }
 
-RenderingManager::~RenderingManager() 
+void RenderingManager::Loop()
 {
-	glfwDestroyWindow(window);
-	glfwTerminate();
-}
-
-void RenderingManager::Run()
-{
-	VulkanRenderer vulkan(window, resizeFunction);
-	
-	//glfwSetWindowUserPointer(window, this);
-	//glfwSetFramebufferSizeCallback(window, ResizeCallback);
-
-	while (!glfwWindowShouldClose(window))
-	{
-		glfwPollEvents();
-		vulkan.Draw();
-	}
-	vulkan.Cleanup();
-}
-
-void RenderingManager::ResizeCallback(GLFWwindow* window, int width, int height)
-{
-	//auto app = reinterpret_cast<RenderingManager*>(glfwGetWindowUserPointer(window));
-	//app->resizeFunction(width, height);
+	_vulkanRenderer->Draw();
 }

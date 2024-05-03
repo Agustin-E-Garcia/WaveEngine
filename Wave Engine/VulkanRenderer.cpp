@@ -1,5 +1,6 @@
 #include "VulkanRenderer.h"
-#include "GLFW/glfw3.h"
+#include "Window.h"
+#include "Utils.h"
 
 VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger)
 {
@@ -23,7 +24,7 @@ void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT
 	}
 }
 
-VulkanRenderer::VulkanRenderer(GLFWwindow* window, void(*resizeFunction)(int width, int height))
+VulkanRenderer::VulkanRenderer(Window& window)
 {
 	//resizeFunction = FramebufferResizeCallback;
 
@@ -31,7 +32,7 @@ VulkanRenderer::VulkanRenderer(GLFWwindow* window, void(*resizeFunction)(int wid
 
 	CreateInstance();
 	SetupDebugMessenger();
-	CreateSurface(*window);
+	CreateSurface(window);
 	PickPhysicalDevice();
 	CreateLogicalDevice();
 	CreateSwapChain();
@@ -99,9 +100,9 @@ void VulkanRenderer::CreateInstance()
 	}
 }
 
-void VulkanRenderer::CreateSurface(GLFWwindow& window)
+void VulkanRenderer::CreateSurface(Window& window)
 {
-	if (glfwCreateWindowSurface(instance, &window, nullptr, &surface) != VK_SUCCESS)
+	if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS)
 	{
 		throw std::runtime_error("failed to create window surface!");
 	}
@@ -545,8 +546,8 @@ void VulkanRenderer::CreateImageViews()
 
 void VulkanRenderer::CreateGraphicsPipeline()
 {
-	auto vertShaderCode = readFile("shaders/vert.spv");
-	auto fragShaderCode = readFile("shaders/frag.spv");
+	auto vertShaderCode = Utils::ReadFile("Shaders/vert.spv");
+	auto fragShaderCode = Utils::ReadFile("Shaders/frag.spv");
 
 	VkShaderModule vertShaderModule = CreateShaderModule(vertShaderCode);
 	VkShaderModule fragShaderModule = CreateShaderModule(fragShaderCode);

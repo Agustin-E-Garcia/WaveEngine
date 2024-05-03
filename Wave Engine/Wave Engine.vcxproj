@@ -135,19 +135,22 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="EngineCore.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="RenderingManager.cpp" />
-    <ClCompile Include="Utils.cpp" />
     <ClCompile Include="VulkanRenderer.cpp" />
+    <ClCompile Include="Window.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\shader.frag" />
     <None Include="Shaders\shader.vert" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="EngineCore.h" />
     <ClInclude Include="RenderingManager.h" />
     <ClInclude Include="Utils.h" />
     <ClInclude Include="VulkanRenderer.h" />
+    <ClInclude Include="Window.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

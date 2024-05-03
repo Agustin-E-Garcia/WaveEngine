@@ -1,16 +1,16 @@
 #pragma once
-#include "GLFW/glfw3.h"
 #include "VulkanRenderer.h"
+
+class Window;
 
 class RenderingManager
 {
+private:
+	VulkanRenderer* _vulkanRenderer;
 public:
 	RenderingManager();
 	~RenderingManager();
 
-	void Run();
-	static void ResizeCallback(GLFWwindow* window, int width, int height);
-
-	GLFWwindow* window = nullptr;
-	void(*resizeFunction)(int width, int height);
+	bool Initialize(Window& window);
+	void Loop();
 };

@@ -1,13 +1,14 @@
 #include <iostream>
-#include "RenderingManager.h"
+#include "EngineCore.h"
 
 int main()
 {
-	RenderingManager renderer;
+	EngineCore engine;
+	engine.Initialize("Vulkan Test");
 
 	try
 	{
-		renderer.Run();
+		engine.Loop();
 	}
 	catch (const std::exception& e)
 	{
