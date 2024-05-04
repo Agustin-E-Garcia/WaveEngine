@@ -138,6 +138,7 @@
     <ClCompile Include="EngineCore.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="RenderingManager.cpp" />
+    <ClCompile Include="Scene.cpp" />
     <ClCompile Include="VulkanRenderer.cpp" />
     <ClCompile Include="Window.cpp" />
   </ItemGroup>
@@ -146,8 +147,10 @@
     <None Include="Shaders\shader.vert" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Components.h" />
     <ClInclude Include="EngineCore.h" />
     <ClInclude Include="RenderingManager.h" />
+    <ClInclude Include="Scene.h" />
     <ClInclude Include="Utils.h" />
     <ClInclude Include="VulkanRenderer.h" />
     <ClInclude Include="Window.h" />
