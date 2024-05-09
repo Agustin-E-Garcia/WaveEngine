@@ -259,7 +259,7 @@ void VulkanRenderer::Initialize(Window& window)
     CreateCommandBuffers();
     CreateSyncObjects();
 
-    CreateDrawingBuffers(sizeof(float) * 98304, sizeof(uint16_t) * 147456);
+    CreateDrawingBuffers(sizeof(float) * 100000, sizeof(uint16_t) * 150000, sizeof(glm::mat4) * 10000);
     CreateStagingBuffer(sizeof(float) * 98304);
 }
 
@@ -267,14 +267,14 @@ void VulkanRenderer::Cleanup()
 {
     vkDeviceWaitIdle(_device);
 
-    vkDestroyBuffer(_device, _vertexStagingBuffer, nullptr);
-    vkFreeMemory(_device, _vertexStagingBufferMemory, nullptr);
+    vkDestroyBuffer(_device, _stagingBuffer, nullptr);
+    vkFreeMemory(_device, _stagingBufferMemory, nullptr);
 
-    vkDestroyBuffer(_device, _indexStagingBuffer, nullptr);
-    vkFreeMemory(_device, _indexStagingBufferMemory, nullptr);
-    
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
+        vkDestroyBuffer(_device, _modelMatrixBuffer[i], nullptr);
+        vkFreeMemory(_device, _modelMatrixBufferMemories[i], nullptr);
+
         vkDestroyBuffer(_device, _indexBuffers[i], nullptr);
         vkFreeMemory(_device, _indexBufferMemories[i], nullptr);
 
@@ -591,7 +591,7 @@ void VulkanRenderer::CreateCommandBuffers()
     if (vkAllocateCommandBuffers(_device, &allocInfo, _commandBuffers.data()) != VK_SUCCESS) throw std::runtime_error("failed to allocate command buffers!");
 }
 
-void VulkanRenderer::RecordCommandBuffer(VkCommandBuffer& commandBuffer, VkBuffer& vertexBuffer, VkBuffer& indexBuffer , uint32_t imageIndex, uint32_t indexSize)
+void VulkanRenderer::RecordCommandBuffer(VkCommandBuffer& commandBuffer, VkBuffer& vertexBuffer, VkBuffer& indexBuffer, VkBuffer& modelMatrixBuffer , uint32_t imageIndex, uint32_t indexCount)
 {
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -640,21 +640,18 @@ void VulkanRenderer::RecordCommandBuffer(VkCommandBuffer& commandBuffer, VkBuffe
         //           orthographic or perspective            FOV                             aspect ratio                     near /  far plane
         glm::mat4 projection = glm::perspective(glm::radians(90.0f), _swapChainExtent.width / (float)_swapChainExtent.height, 0.1f, 10.0f);
         projection[1][1] *= -1;
-
-        glm::mat4 model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
         
 
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, material);
         material.PushConstants(commandBuffer, view, projection);
 
-        VkBuffer vertexBuffers[] = { vertexBuffer };
         VkDeviceSize offsets[] = { 0 };
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-        vkCmdBindVertexBuffers(commandBuffer, 1, 1, nullptr, offsets);
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer, offsets);
+        vkCmdBindVertexBuffers(commandBuffer, 1, 1, &modelMatrixBuffer, offsets);
 
         vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
-        vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indexSize), 1, 0, 0, 0);
+        vkCmdDrawIndexed(commandBuffer, indexCount, 1, 0, 0, 0);
     }
 
     vkCmdEndRenderPass(commandBuffer);
@@ -662,7 +659,7 @@ void VulkanRenderer::RecordCommandBuffer(VkCommandBuffer& commandBuffer, VkBuffe
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) throw std::runtime_error("failed to record command buffer!");
 }
 
-void VulkanRenderer::DrawFrame(std::vector<float> vertices, std::vector<uint16_t> indices)
+void VulkanRenderer::DrawFrame(DrawData& drawData)
 {
     vkWaitForFences(_device, 1, &_inFlightFences[_currentFrame], VK_TRUE, UINT64_MAX);
     vkResetFences(_device, 1, &_inFlightFences[_currentFrame]);
@@ -672,9 +669,9 @@ void VulkanRenderer::DrawFrame(std::vector<float> vertices, std::vector<uint16_t
 
     vkResetCommandBuffer(_commandBuffers[_currentFrame], /*VkCommandBufferResetFlagBits*/ 0);
     
-    LoadDrawingBuffers(_vertexBuffers[_currentFrame], _indexBuffers[_currentFrame],  vertices, indices);
+    LoadDrawingBuffers(_vertexBuffers[_currentFrame], _indexBuffers[_currentFrame], _modelMatrixBuffer[_currentFrame], drawData);
     
-    RecordCommandBuffer(_commandBuffers[_currentFrame], _vertexBuffers[_currentFrame], _indexBuffers[_currentFrame], imageIndex, indices.size());
+    RecordCommandBuffer(_commandBuffers[_currentFrame], _vertexBuffers[_currentFrame], _indexBuffers[_currentFrame], _modelMatrixBuffer[_currentFrame],  imageIndex, drawData.indices.size());
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -735,7 +732,7 @@ void VulkanRenderer::CreateSyncObjects()
     }
 }
 
-void VulkanRenderer::CreateDrawingBuffers(size_t vertexBufferSize, size_t indexBufferSize)
+void VulkanRenderer::CreateDrawingBuffers(size_t vertexBufferSize, size_t indexBufferSize, size_t modelMatrixBufferSize)
 {
     _vertexBuffers.resize(MAX_FRAMES_IN_FLIGHT);
     _vertexBufferMemories.resize(MAX_FRAMES_IN_FLIGHT);
@@ -743,17 +740,20 @@ void VulkanRenderer::CreateDrawingBuffers(size_t vertexBufferSize, size_t indexB
     _indexBuffers.resize(MAX_FRAMES_IN_FLIGHT);
     _indexBufferMemories.resize(MAX_FRAMES_IN_FLIGHT);
 
+    _modelMatrixBuffer.resize(MAX_FRAMES_IN_FLIGHT);
+    _modelMatrixBufferMemories.resize(MAX_FRAMES_IN_FLIGHT);
+
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
         CreateBuffer(vertexBufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _vertexBuffers[i], _vertexBufferMemories[i]);
         CreateBuffer(indexBufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _indexBuffers[i], _indexBufferMemories[i]);
+        CreateBuffer(modelMatrixBufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _modelMatrixBuffer[i], _modelMatrixBufferMemories[i]);
     }
 }
 
 void VulkanRenderer::CreateStagingBuffer(size_t bufferSize)
 {
-    CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _vertexStagingBuffer, _vertexStagingBufferMemory);
-    CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _indexStagingBuffer, _indexStagingBufferMemory);
+    CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _stagingBuffer, _stagingBufferMemory);
 }
 
 void VulkanRenderer::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory)
@@ -779,23 +779,31 @@ void VulkanRenderer::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, V
     vkBindBufferMemory(_device, buffer, bufferMemory, 0);
 }
 
-void VulkanRenderer::LoadDrawingBuffers(VkBuffer& vertexBuffer, VkBuffer indexBuffer, std::vector<float> vertices, std::vector<uint16_t> indices)
+void VulkanRenderer::LoadDrawingBuffers(VkBuffer& vertexBuffer, VkBuffer indexBuffer, VkBuffer modelMatrixBuffer, DrawData& drawData)
 {
     // Copy vertices
     void* vertexData;
-    vkMapMemory(_device, _vertexStagingBufferMemory, 0, sizeof(float) * vertices.size(), 0, &vertexData);
-    memcpy(vertexData, vertices.data(), sizeof(float) * vertices.size());
-    vkUnmapMemory(_device, _vertexStagingBufferMemory);
+    vkMapMemory(_device, _stagingBufferMemory, 0, sizeof(float) * drawData.vertices.size(), 0, &vertexData);
+    memcpy(vertexData, drawData.vertices.data(), sizeof(float) * drawData.vertices.size());
+    vkUnmapMemory(_device, _stagingBufferMemory);
 
-    CopyBuffer(_vertexStagingBuffer, vertexBuffer, sizeof(float) * vertices.size());
+    CopyBuffer(_stagingBuffer, vertexBuffer, sizeof(float) * drawData.vertices.size());
 
     // Copy indices
     void* indexData;
-    vkMapMemory(_device, _indexStagingBufferMemory, 0, sizeof(uint16_t) * indices.size(), 0, &indexData);
-    memcpy(indexData, indices.data(), sizeof(uint16_t) * indices.size());
-    vkUnmapMemory(_device, _indexStagingBufferMemory);
+    vkMapMemory(_device, _stagingBufferMemory, 0, sizeof(uint16_t) * drawData.indices.size(), 0, &indexData);
+    memcpy(indexData, drawData.indices.data(), sizeof(uint16_t) * drawData.indices.size());
+    vkUnmapMemory(_device, _stagingBufferMemory);
 
-    CopyBuffer(_indexStagingBuffer, indexBuffer, sizeof(uint16_t) * indices.size());
+    CopyBuffer(_stagingBuffer, indexBuffer, sizeof(uint16_t) * drawData.indices.size());
+
+    // Copy model matrices
+    void* modelMatrixData;
+    vkMapMemory(_device, _stagingBufferMemory, 0, sizeof(glm::mat4) * drawData.modelMatrices.size(), 0, &modelMatrixData);
+    memcpy(modelMatrixData, drawData.modelMatrices.data(), sizeof(glm::mat4) * drawData.modelMatrices.size());
+    vkUnmapMemory(_device, _stagingBufferMemory);
+
+    CopyBuffer(_stagingBuffer, modelMatrixBuffer, sizeof(glm::mat4) * drawData.modelMatrices.size());
 }
 
 void VulkanRenderer::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) 

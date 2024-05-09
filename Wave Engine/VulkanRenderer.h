@@ -3,11 +3,20 @@
 
 class Window;
 
+struct DrawData 
+{
+	std::vector<float> vertices;
+	std::vector<uint16_t> indices;
+
+	int instanceCount;
+	std::vector<glm::mat4> modelMatrices;
+};
+
 class VulkanRenderer
 {
 public:
 	void Initialize(Window& window);
-	void Draw(std::vector<float> vertexData, std::vector<uint16_t> indexData) { DrawFrame(vertexData, indexData); }
+	void Draw(DrawData drawData) { DrawFrame(drawData); }
 	void Cleanup();
 
 	int CreateMaterial(const char* vertexShader, const char* fragmentShader);
@@ -48,11 +57,11 @@ private:
 	std::vector<VkBuffer> _indexBuffers;
 	std::vector<VkDeviceMemory> _indexBufferMemories;
 
-	VkBuffer _vertexStagingBuffer;
-	VkDeviceMemory _vertexStagingBufferMemory;
+	std::vector<VkBuffer> _modelMatrixBuffer;
+	std::vector<VkDeviceMemory> _modelMatrixBufferMemories;
 
-	VkBuffer _indexStagingBuffer;
-	VkDeviceMemory _indexStagingBufferMemory;
+	VkBuffer _stagingBuffer;
+	VkDeviceMemory _stagingBufferMemory;
 
 	void CreateInstance(const char* title);
 	void SetupDebugMessenger();
@@ -65,12 +74,12 @@ private:
 	void CreateFrameBuffers();
 	void CreateCommandPool();
 	void CreateCommandBuffers();
-	void RecordCommandBuffer(VkCommandBuffer& commandBuffer, VkBuffer& vertexBuffer, VkBuffer& indexBuffer, uint32_t imageIndex, uint32_t indexSize);
-	void DrawFrame(std::vector<float> vertices, std::vector<uint16_t> indices);
+	void RecordCommandBuffer(VkCommandBuffer& commandBuffer, VkBuffer& vertexBuffer, VkBuffer& indexBuffer, VkBuffer& modelMatrixBuffer, uint32_t imageIndex, uint32_t indexCount);
+	void DrawFrame(DrawData& drawData);
 	void CreateSyncObjects();
-	void CreateDrawingBuffers(size_t vertexBufferSize, size_t indexBufferSize);
+	void CreateDrawingBuffers(size_t vertexBufferSize, size_t indexBufferSize, size_t modelMatrixBufferSize);
 	void CreateStagingBuffer(size_t bufferSize);
 	void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
-	void LoadDrawingBuffers(VkBuffer& vertexBuffer, VkBuffer indexBuffer, std::vector<float> vertices, std::vector<uint16_t> indices);
+	void LoadDrawingBuffers(VkBuffer& vertexBuffer, VkBuffer indexBuffer, VkBuffer modelMatrixBuffer, DrawData& drawData);
 	void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 };
