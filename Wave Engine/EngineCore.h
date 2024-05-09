@@ -8,7 +8,7 @@ private:
 	const char* _title;
 	Scene* _activeScene;
 public:
-	void Initialize(const char* title, Scene* activeScene = nullptr);
+	void Initialize(const char* title);
 	void Loop();
 
 	void SetActiveScene(Scene* scene);

@@ -2,14 +2,10 @@
 #include<iostream>
 #include "RenderingManager.h"
 
-void EngineCore::Initialize(const char* title, Scene* activeScene = nullptr)
+void EngineCore::Initialize(const char* title)
 {
 	_title = title;
-	if (activeScene) SetActiveScene(activeScene);
-	else 
-	{
-		activeScene = new Scene();
-	}
+	_activeScene = new Scene();
 }
 
 void EngineCore::Loop()
@@ -23,7 +19,7 @@ void EngineCore::Loop()
 	while (!window.ShouldClose())
 	{
 		window.PollEvents();
-		renderer.Draw();
+		renderer.Draw(*_activeScene);
 	}
 
 	window.Shutdown();

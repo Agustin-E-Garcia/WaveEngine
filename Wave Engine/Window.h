@@ -4,6 +4,7 @@
 class Window
 {
 private:
+	const char* _title;
 	void* _window;
 
 public:
@@ -14,6 +15,8 @@ public:
 	void Shutdown();
 	bool ShouldClose();
 	void PollEvents();
+
+	const char* GetTitle() { return _title; }
 
 	operator GLFWwindow*() { return (GLFWwindow*)_window; }
 };

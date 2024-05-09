@@ -2,15 +2,17 @@
 #include "VulkanRenderer.h"
 
 class Window;
+class Scene;
 
 class RenderingManager
 {
 private:
-	VulkanRenderer* _vulkanRenderer;
+	VulkanRenderer _vulkanRenderer;
 public:
 	RenderingManager();
 	~RenderingManager();
 
 	bool Initialize(Window& window);
-	void Loop();
+	void Draw(Scene& scene);
+	int CreateMaterial(const char* vertexShader, const char* fragmentShader);
 };

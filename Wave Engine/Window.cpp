@@ -10,6 +10,8 @@ bool Window::Initialize(int width, int height, const char* title)
 
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	_window = glfwCreateWindow(width, height, title, nullptr, nullptr);
+
+	_title = title;
 }
 
 void Window::Shutdown()

@@ -1,5 +1,6 @@
 #pragma once
 #include "enTT/entt.hpp"
+#include "Components.h"
 
 class Scene
 {
@@ -13,8 +14,5 @@ public:
 
 	entt::entity AddEntity();
 
-	template<typename T>
-	T AddComponent(const entt::entity entity);
-
-	void QueryEntities();
+	entt::registry& Registry() { return _registry; }
 };

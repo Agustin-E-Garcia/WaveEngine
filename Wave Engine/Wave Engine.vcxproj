@@ -139,6 +139,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="RenderingManager.cpp" />
     <ClCompile Include="Scene.cpp" />
+    <ClCompile Include="VulkanMaterial.cpp" />
     <ClCompile Include="VulkanRenderer.cpp" />
     <ClCompile Include="Window.cpp" />
   </ItemGroup>
@@ -152,6 +153,7 @@
     <ClInclude Include="RenderingManager.h" />
     <ClInclude Include="Scene.h" />
     <ClInclude Include="Utils.h" />
+    <ClInclude Include="VulkanMaterial.h" />
     <ClInclude Include="VulkanRenderer.h" />
     <ClInclude Include="Window.h" />
   </ItemGroup>

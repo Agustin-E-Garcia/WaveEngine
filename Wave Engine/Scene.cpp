@@ -4,7 +4,10 @@
 Scene::Scene()
 {
 	_cameraEntity = AddEntity();
-	AddComponent<Components::Camera>(_cameraEntity);
+	_registry.emplace<Components::Camera>(_cameraEntity);
+
+	auto entity = AddEntity();
+	_registry.emplace<Components::Mesh>(entity);
 }
 
 Scene::~Scene()
@@ -17,10 +20,4 @@ entt::entity Scene::AddEntity()
 	_registry.emplace<Components::Transform>(newEntity);
 
 	return newEntity;
-}
-
-template<typename T>
-T Scene::AddComponent(const entt::entity entity)
-{
-	return _registry.emplace<T>(entity);
 }
