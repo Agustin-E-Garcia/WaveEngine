@@ -11,7 +11,7 @@ void EngineCore::Initialize(const char* title)
 void EngineCore::Loop()
 {
 	Window window;
-	window.Initialize(800, 600, _title);
+	window.Initialize(1920, 1080, _title);
 
 	RenderingManager renderer;
 	renderer.Initialize(window);

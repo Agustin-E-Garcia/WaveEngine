@@ -7,6 +7,8 @@ struct DrawData
 {
 	std::vector<float> vertices;
 	std::vector<uint16_t> indices;
+	std::vector<uint16_t> indexOffsets;
+	std::vector<uint16_t> indexCount;
 
 	int instanceCount;
 	std::vector<glm::mat4> modelMatrices;
@@ -51,17 +53,19 @@ private:
 
 	uint32_t _currentFrame = 0;
 
+	// Buffers
 	std::vector<VkBuffer> _vertexBuffers;
 	std::vector<VkDeviceMemory> _vertexBufferMemories;
 
 	std::vector<VkBuffer> _indexBuffers;
 	std::vector<VkDeviceMemory> _indexBufferMemories;
 
-	std::vector<VkBuffer> _modelMatrixBuffer;
+	std::vector<VkBuffer> _modelMatrixBuffers;
 	std::vector<VkDeviceMemory> _modelMatrixBufferMemories;
 
 	VkBuffer _stagingBuffer;
 	VkDeviceMemory _stagingBufferMemory;
+	// Buffers
 
 	void CreateInstance(const char* title);
 	void SetupDebugMessenger();
@@ -74,7 +78,7 @@ private:
 	void CreateFrameBuffers();
 	void CreateCommandPool();
 	void CreateCommandBuffers();
-	void RecordCommandBuffer(VkCommandBuffer& commandBuffer, VkBuffer& vertexBuffer, VkBuffer& indexBuffer, VkBuffer& modelMatrixBuffer, uint32_t imageIndex, uint32_t indexCount);
+	void RecordCommandBuffer(uint32_t currentFrame, uint32_t imageIndex, const DrawData& drawData);
 	void DrawFrame(DrawData& drawData);
 	void CreateSyncObjects();
 	void CreateDrawingBuffers(size_t vertexBufferSize, size_t indexBufferSize, size_t modelMatrixBufferSize);

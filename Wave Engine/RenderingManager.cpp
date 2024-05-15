@@ -18,10 +18,14 @@ void RenderingManager::Draw(Scene& scene)
 	DrawData drawData{};
 	drawData.instanceCount = 0;
 
+	std::set<const char*> meshesAdded;
+
 	for (auto &&[entity, transform, mesh] : view.each())
 	{
-		if (drawData.vertices.empty()) // For now I'm just drawing planes, so this will be changed once I have model loading
+		if(meshesAdded.count(mesh.modelName) == 0)
 		{
+			meshesAdded.insert(mesh.modelName);
+
 			drawData.vertices.insert(drawData.vertices.end(), mesh._vertices.begin(), mesh._vertices.end());
 			drawData.indices.insert(drawData.indices.end(), mesh._indices.begin(), mesh._indices.end());
 		}

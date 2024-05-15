@@ -27,7 +27,7 @@ static std::array<VkVertexInputBindingDescription, 2> GetBindingDescription()
 	bindingDescription[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
 	bindingDescription[1].binding = 1;
-	bindingDescription[1].stride = sizeof(float) * 12;
+	bindingDescription[1].stride = sizeof(float) * 16;
 	bindingDescription[1].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
 
 	return bindingDescription;

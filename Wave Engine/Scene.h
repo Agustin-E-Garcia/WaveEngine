@@ -13,6 +13,7 @@ public:
 	~Scene();
 
 	entt::entity AddEntity();
+	entt::entity AddEntity(glm::vec3 position);
 
 	entt::registry& Registry() { return _registry; }
 };

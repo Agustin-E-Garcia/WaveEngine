@@ -260,7 +260,7 @@ void VulkanRenderer::Initialize(Window& window)
     CreateSyncObjects();
 
     CreateDrawingBuffers(sizeof(float) * 100000, sizeof(uint16_t) * 150000, sizeof(glm::mat4) * 10000);
-    CreateStagingBuffer(sizeof(float) * 98304);
+    CreateStagingBuffer(sizeof(float) * 100000);
 }
 
 void VulkanRenderer::Cleanup()
@@ -272,7 +272,7 @@ void VulkanRenderer::Cleanup()
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
-        vkDestroyBuffer(_device, _modelMatrixBuffer[i], nullptr);
+        vkDestroyBuffer(_device, _modelMatrixBuffers[i], nullptr);
         vkFreeMemory(_device, _modelMatrixBufferMemories[i], nullptr);
 
         vkDestroyBuffer(_device, _indexBuffers[i], nullptr);
@@ -591,12 +591,15 @@ void VulkanRenderer::CreateCommandBuffers()
     if (vkAllocateCommandBuffers(_device, &allocInfo, _commandBuffers.data()) != VK_SUCCESS) throw std::runtime_error("failed to allocate command buffers!");
 }
 
-void VulkanRenderer::RecordCommandBuffer(VkCommandBuffer& commandBuffer, VkBuffer& vertexBuffer, VkBuffer& indexBuffer, VkBuffer& modelMatrixBuffer , uint32_t imageIndex, uint32_t indexCount)
+void VulkanRenderer::RecordCommandBuffer(uint32_t currentframe, uint32_t imageIndex, const DrawData& drawData)
 {
+    VkCommandBuffer commandBuffer = _commandBuffers[_currentFrame];
+    VkBuffer vertexBuffer = _vertexBuffers[_currentFrame];
+    VkBuffer indexBuffer = _indexBuffers[_currentFrame];
+    VkBuffer modelBuffer = _modelMatrixBuffers[_currentFrame];
+
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = 0; // Optional
-    beginInfo.pInheritanceInfo = nullptr; // Optional
 
     if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) throw std::runtime_error("failed to begin recording command buffer!");
 
@@ -627,32 +630,29 @@ void VulkanRenderer::RecordCommandBuffer(VkCommandBuffer& commandBuffer, VkBuffe
     scissor.extent = _swapChainExtent;
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-    for (VulkanMaterial material : _materialList) // Need to change this, it's not a draw call per material but one draw call per *different* model being drawn 
-    {
-        static auto startTime = std::chrono::high_resolution_clock::now();
+    // This is here for testing for now, will replace once the correct values can be gathered from the camera entity
+    static auto startTime = std::chrono::high_resolution_clock::now();
 
-        auto currentTime = std::chrono::high_resolution_clock::now();
-        float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+    auto currentTime = std::chrono::high_resolution_clock::now();
+    float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
-        //        view =                    camera position                     camera forward                      up
-        glm::mat4 view = glm::lookAt(glm::vec3(-2.0f, -2.0f, -2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    //        view =                    camera position                     camera forward                      up
+    glm::mat4 view = glm::lookAt(glm::vec3(-2.0f, -2.0f, -2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 
-        //           orthographic or perspective            FOV                             aspect ratio                     near /  far plane
-        glm::mat4 projection = glm::perspective(glm::radians(90.0f), _swapChainExtent.width / (float)_swapChainExtent.height, 0.1f, 10.0f);
-        projection[1][1] *= -1;
-        
+    //           orthographic or perspective            FOV                             aspect ratio                     near /  far plane
+    glm::mat4 projection = glm::perspective(glm::radians(90.0f), _swapChainExtent.width / (float)_swapChainExtent.height, 0.1f, 10.0f);
+    projection[1][1] *= -1;
 
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, material);
-        material.PushConstants(commandBuffer, view, projection);
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _materialList[0]);
+    _materialList[0].PushConstants(commandBuffer, view, projection);
 
-        VkDeviceSize offsets[] = { 0 };
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer, offsets);
-        vkCmdBindVertexBuffers(commandBuffer, 1, 1, &modelMatrixBuffer, offsets);
+    VkBuffer buffers[] = { vertexBuffer, modelBuffer };
+    VkDeviceSize offsets[] = { 0, 0 };
+    vkCmdBindVertexBuffers(commandBuffer, 0, 2, buffers, offsets);
 
-        vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+    vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
-        vkCmdDrawIndexed(commandBuffer, indexCount, 1, 0, 0, 0);
-    }
+    vkCmdDrawIndexed(commandBuffer, drawData.indices.size(), drawData.instanceCount, 0, 0, 0);
 
     vkCmdEndRenderPass(commandBuffer);
 
@@ -669,9 +669,9 @@ void VulkanRenderer::DrawFrame(DrawData& drawData)
 
     vkResetCommandBuffer(_commandBuffers[_currentFrame], /*VkCommandBufferResetFlagBits*/ 0);
     
-    LoadDrawingBuffers(_vertexBuffers[_currentFrame], _indexBuffers[_currentFrame], _modelMatrixBuffer[_currentFrame], drawData);
-    
-    RecordCommandBuffer(_commandBuffers[_currentFrame], _vertexBuffers[_currentFrame], _indexBuffers[_currentFrame], _modelMatrixBuffer[_currentFrame],  imageIndex, drawData.indices.size());
+    LoadDrawingBuffers(_vertexBuffers[_currentFrame], _indexBuffers[_currentFrame], _modelMatrixBuffers[_currentFrame], drawData);
+
+    RecordCommandBuffer(_currentFrame,  imageIndex, drawData);
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -740,14 +740,14 @@ void VulkanRenderer::CreateDrawingBuffers(size_t vertexBufferSize, size_t indexB
     _indexBuffers.resize(MAX_FRAMES_IN_FLIGHT);
     _indexBufferMemories.resize(MAX_FRAMES_IN_FLIGHT);
 
-    _modelMatrixBuffer.resize(MAX_FRAMES_IN_FLIGHT);
+    _modelMatrixBuffers.resize(MAX_FRAMES_IN_FLIGHT);
     _modelMatrixBufferMemories.resize(MAX_FRAMES_IN_FLIGHT);
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
         CreateBuffer(vertexBufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _vertexBuffers[i], _vertexBufferMemories[i]);
         CreateBuffer(indexBufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _indexBuffers[i], _indexBufferMemories[i]);
-        CreateBuffer(modelMatrixBufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _modelMatrixBuffer[i], _modelMatrixBufferMemories[i]);
+        CreateBuffer(modelMatrixBufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _modelMatrixBuffers[i], _modelMatrixBufferMemories[i]);
     }
 }
 
